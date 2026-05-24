@@ -1,0 +1,1776 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>VERSO — Comic Reader</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;0,600;1,300;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet" />
+
+<!-- ═══════════════════════════════════════════════════════════
+     STYLES
+     ═══════════════════════════════════════════════════════════ -->
+<style>
+/* ── Variables ─────────────────────────────────────────────── */
+:root {
+  --white:      #ffffff;
+  --cream:      #f7f4ef;
+  --beige:      #ede9e0;
+  --sand:       #d9d3c5;
+  --warm-gray:  #8c8680;
+  --dark-gray:  #3a3733;
+  --black:      #1a1916;
+
+  --bg:         var(--cream);
+  --surface:    var(--white);
+  --border:     var(--sand);
+  --text:       var(--black);
+  --text-muted: var(--warm-gray);
+  --accent:     var(--dark-gray);
+
+  --font-display: 'Cormorant Garamond', Georgia, serif;
+  --font-body:    'DM Sans', system-ui, sans-serif;
+
+  --radius-sm:  6px;
+  --radius-md:  12px;
+  --radius-lg:  20px;
+  --radius-xl:  32px;
+
+  --shadow-sm:  0 1px 4px rgba(26,25,22,0.06);
+  --shadow-md:  0 4px 20px rgba(26,25,22,0.08);
+  --shadow-lg:  0 12px 48px rgba(26,25,22,0.10);
+
+  --trans:      0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Dark mode */
+[data-theme="dark"] {
+  --bg:         #111010;
+  --surface:    #1c1b19;
+  --border:     #2e2c28;
+  --text:       #f0ece4;
+  --text-muted: #7a756e;
+  --accent:     #e0d9cc;
+  --cream:      #111010;
+  --beige:      #1c1b19;
+  --sand:       #2e2c28;
+}
+
+/* ── Reset & Base ───────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+  scrollbar-width: thin;
+  scrollbar-color: var(--sand) transparent;
+}
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--sand); border-radius: 99px; }
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 300;
+  transition: background var(--trans), color var(--trans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+img { display: block; max-width: 100%; }
+button { cursor: pointer; border: none; background: none; font-family: var(--font-body); }
+a { text-decoration: none; color: inherit; }
+
+/* ── Typography ─────────────────────────────────────────────── */
+.display { font-family: var(--font-display); font-weight: 300; }
+.label {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+/* ── Utility ────────────────────────────────────────────────── */
+.hidden { display: none !important; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
+
+/* ═══════════════════════════════════════════════════════════
+   LOADER
+   ═══════════════════════════════════════════════════════════ */
+#loader {
+  position: fixed;
+  inset: 0;
+  background: var(--cream);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 24px;
+  z-index: 9999;
+  transition: opacity 0.8s ease, visibility 0.8s ease;
+}
+[data-theme="dark"] #loader { background: #111010; }
+#loader.fade-out { opacity: 0; visibility: hidden; }
+
+.loader-logo {
+  font-family: var(--font-display);
+  font-size: 48px;
+  font-weight: 300;
+  letter-spacing: 0.2em;
+  color: var(--text);
+}
+.loader-line {
+  width: 40px;
+  height: 1px;
+  background: var(--sand);
+  position: relative;
+  overflow: hidden;
+}
+.loader-line::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--accent);
+  transform: translateX(-100%);
+  animation: lineLoad 1.2s ease forwards;
+}
+@keyframes lineLoad {
+  to { transform: translateX(0); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   NAVIGATION
+   ═══════════════════════════════════════════════════════════ */
+#nav {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  padding: 0 32px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(247,244,239,0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid transparent;
+  transition: border-color var(--trans), background var(--trans);
+}
+[data-theme="dark"] #nav {
+  background: rgba(17,16,16,0.85);
+}
+#nav.scrolled { border-bottom-color: var(--border); }
+
+.nav-logo {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 300;
+  letter-spacing: 0.18em;
+  cursor: pointer;
+}
+.nav-right { display: flex; align-items: center; gap: 8px; }
+.nav-btn {
+  width: 38px; height: 38px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+  transition: color var(--trans), background var(--trans);
+  font-size: 18px;
+  position: relative;
+}
+.nav-btn:hover { color: var(--text); background: var(--beige); }
+.nav-btn svg { width: 18px; height: 18px; }
+
+/* ── Search Overlay ─────────────────────────────────────────── */
+#search-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(247,244,239,0.96);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 120px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--trans);
+}
+[data-theme="dark"] #search-overlay { background: rgba(17,16,16,0.96); }
+#search-overlay.open { opacity: 1; pointer-events: all; }
+
+.search-inner { width: 100%; max-width: 560px; padding: 0 24px; }
+.search-label { margin-bottom: 20px; }
+.search-input-wrap {
+  position: relative;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding-bottom: 12px;
+  margin-bottom: 32px;
+}
+.search-input-wrap svg { width: 20px; height: 20px; color: var(--text-muted); flex-shrink: 0; }
+#search-input {
+  flex: 1;
+  border: none;
+  background: none;
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 300;
+  color: var(--text);
+  padding: 0 12px;
+  outline: none;
+  width: 100%;
+}
+#search-input::placeholder { color: var(--text-muted); }
+
+.search-results { display: flex; flex-direction: column; gap: 12px; }
+.search-result-item {
+  display: flex; align-items: center; gap: 16px;
+  padding: 12px 16px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: background var(--trans);
+}
+.search-result-item:hover { background: var(--beige); }
+.search-result-thumb {
+  width: 44px; height: 60px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  flex-shrink: 0;
+}
+.search-result-info { flex: 1; }
+.search-result-title { font-size: 16px; font-weight: 400; margin-bottom: 2px; }
+.search-result-sub { font-size: 12px; color: var(--text-muted); }
+.search-close {
+  position: absolute;
+  top: 24px; right: 24px;
+  width: 40px; height: 40px;
+  border-radius: var(--radius-sm);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-muted);
+  font-size: 22px;
+  transition: color var(--trans), background var(--trans);
+}
+.search-close:hover { color: var(--text); background: var(--beige); }
+.empty-state {
+  text-align: center;
+  padding: 48px 0;
+  color: var(--text-muted);
+}
+.empty-state .empty-icon { font-size: 40px; margin-bottom: 12px; opacity: 0.4; }
+.empty-state p { font-size: 14px; }
+
+/* ═══════════════════════════════════════════════════════════
+   PAGES
+   ═══════════════════════════════════════════════════════════ */
+.page { display: none; }
+.page.active { display: block; }
+
+/* ═══════════════════════════════════════════════════════════
+   HOME PAGE
+   ═══════════════════════════════════════════════════════════ */
+/* ── Hero ───────────────────────────────────────────────────── */
+#hero {
+  padding-top: 128px;
+  padding-bottom: 80px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.hero-ambient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ambient-circle {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(200,192,178,0.18) 0%, transparent 70%);
+  animation: drift 12s ease-in-out infinite;
+}
+.ambient-circle:nth-child(1) {
+  width: 600px; height: 600px;
+  top: -200px; left: -100px;
+  animation-delay: 0s;
+}
+.ambient-circle:nth-child(2) {
+  width: 400px; height: 400px;
+  top: 0; right: -100px;
+  animation-delay: -6s;
+}
+@keyframes drift {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(20px, 30px); }
+}
+
+.hero-inner { position: relative; z-index: 1; max-width: 700px; margin: 0 auto; padding: 0 24px; }
+.hero-eyebrow { margin-bottom: 20px; }
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(52px, 8vw, 96px);
+  font-weight: 300;
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+  margin-bottom: 28px;
+  color: var(--text);
+}
+.hero-title em { font-style: italic; }
+.hero-desc {
+  font-size: 16px;
+  color: var(--text-muted);
+  font-weight: 300;
+  max-width: 380px;
+  margin: 0 auto 40px;
+  line-height: 1.7;
+}
+.hero-stats { display: flex; justify-content: center; gap: 40px; }
+.hero-stat { text-align: center; }
+.hero-stat-num {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 300;
+  margin-bottom: 4px;
+}
+
+/* ── Filters ─────────────────────────────────────────────────── */
+#filters {
+  padding: 0 40px 40px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.filter-btn {
+  padding: 8px 20px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  font-size: 13px;
+  font-weight: 300;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  background: transparent;
+  transition: all var(--trans);
+  font-family: var(--font-body);
+}
+.filter-btn:hover { border-color: var(--accent); color: var(--text); }
+.filter-btn.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--cream);
+}
+[data-theme="dark"] .filter-btn.active { color: var(--bg); }
+
+/* ── Comic Grid ──────────────────────────────────────────────── */
+#comic-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 32px;
+  padding: 0 40px 120px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.comic-card {
+  cursor: pointer;
+  animation: cardIn 0.5s ease both;
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.comic-card-cover {
+  aspect-ratio: 2/3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: relative;
+  background: var(--beige);
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+  transition: box-shadow var(--trans), transform var(--trans);
+}
+.comic-card:hover .comic-card-cover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-4px);
+}
+.comic-card-cover img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+.comic-card:hover .comic-card-cover img { transform: scale(1.04); }
+
+.comic-card-fav {
+  position: absolute;
+  top: 12px; right: 12px;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: rgba(247,244,239,0.9);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity var(--trans);
+  backdrop-filter: blur(4px);
+}
+.comic-card:hover .comic-card-fav { opacity: 1; }
+.comic-card-fav.favorited { opacity: 1; }
+.comic-card-fav svg { width: 14px; height: 14px; }
+.comic-card-fav.favorited svg { fill: var(--dark-gray); }
+
+.comic-card-genre {
+  margin-bottom: 6px;
+}
+.comic-card-title {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 400;
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+.comic-card-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 300;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.comic-card-meta {
+  margin-top: 10px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.meta-dot { width: 3px; height: 3px; border-radius: 50%; background: var(--sand); }
+
+/* ── Progress badge ─────────────────────────────────────────── */
+.comic-card-progress {
+  position: absolute;
+  bottom: 12px; left: 12px; right: 12px;
+  background: rgba(26,25,22,0.7);
+  backdrop-filter: blur(4px);
+  border-radius: 6px;
+  height: 3px;
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity var(--trans);
+}
+.comic-card:hover .comic-card-progress,
+.comic-card-progress.visible { opacity: 1; }
+.comic-card-progress-bar {
+  height: 100%;
+  background: var(--cream);
+  transition: width 0.3s ease;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DETAIL PAGE
+   ═══════════════════════════════════════════════════════════ */
+#detail-banner {
+  width: 100%;
+  height: 420px;
+  position: relative;
+  overflow: hidden;
+  margin-top: 64px;
+}
+#detail-banner img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+}
+#detail-banner::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, transparent 40%, var(--bg) 100%);
+}
+
+#detail-content {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 40px 120px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 48px;
+  align-items: start;
+  margin-top: -80px;
+  position: relative;
+  z-index: 1;
+}
+
+.detail-cover {
+  width: 100%;
+  aspect-ratio: 2/3;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: var(--shadow-lg);
+}
+.detail-cover img { width: 100%; height: 100%; object-fit: cover; }
+
+.detail-genre { margin-bottom: 12px; }
+.detail-title {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 5vw, 52px);
+  font-weight: 300;
+  line-height: 1.05;
+  margin-bottom: 8px;
+}
+.detail-title em { font-style: italic; }
+.detail-year { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+.detail-desc {
+  font-size: 15px;
+  font-weight: 300;
+  line-height: 1.8;
+  color: var(--text-muted);
+  margin-bottom: 28px;
+  max-width: 480px;
+}
+.detail-stats {
+  display: flex; gap: 24px;
+  margin-bottom: 32px;
+  padding-bottom: 28px;
+  border-bottom: 1px solid var(--border);
+}
+.detail-stat { }
+.detail-stat-num { font-family: var(--font-display); font-size: 24px; font-weight: 300; }
+.detail-stat-label { font-size: 11px; color: var(--text-muted); margin-top: 2px; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.detail-actions { display: flex; gap: 12px; flex-wrap: wrap; }
+
+.btn-primary {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 32px;
+  background: var(--text);
+  color: var(--bg);
+  border-radius: 99px;
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  transition: opacity var(--trans), transform var(--trans);
+}
+.btn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+.btn-primary svg { width: 16px; height: 16px; }
+
+.btn-ghost {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 14px 24px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  font-size: 14px;
+  font-weight: 300;
+  color: var(--text-muted);
+  transition: all var(--trans);
+}
+.btn-ghost:hover { border-color: var(--text); color: var(--text); }
+.btn-ghost svg { width: 14px; height: 14px; }
+.btn-ghost.favorited { border-color: var(--text); color: var(--text); }
+.btn-ghost.favorited svg { fill: currentColor; }
+
+/* ── Back button ───────────────────────────────────────────── */
+.back-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 13px;
+  color: var(--text-muted);
+  padding: 16px 0;
+  transition: color var(--trans);
+  letter-spacing: 0.04em;
+}
+.back-btn:hover { color: var(--text); }
+.back-btn svg { width: 16px; height: 16px; }
+
+/* ═══════════════════════════════════════════════════════════
+   READER PAGE
+   ═══════════════════════════════════════════════════════════ */
+#page-reader {
+  background: var(--bg);
+  min-height: 100vh;
+}
+
+/* ── Reader bar ──────────────────────────────────────────────── */
+#reader-bar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 56px;
+  z-index: 100;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px;
+  background: rgba(247,244,239,0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  transition: background var(--trans);
+}
+[data-theme="dark"] #reader-bar { background: rgba(17,16,16,0.9); }
+
+#reader-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 300;
+  position: absolute;
+  left: 50%; transform: translateX(-50%);
+}
+.reader-nav-btn {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px;
+  color: var(--text-muted);
+  transition: color var(--trans);
+  padding: 8px;
+  border-radius: var(--radius-sm);
+}
+.reader-nav-btn:hover { color: var(--text); background: var(--beige); }
+.reader-nav-btn svg { width: 16px; height: 16px; }
+
+/* ── Progress bar ────────────────────────────────────────────── */
+#progress-bar {
+  position: fixed;
+  top: 56px; left: 0; right: 0;
+  height: 2px;
+  background: var(--border);
+  z-index: 101;
+}
+#progress-fill {
+  height: 100%;
+  background: var(--text);
+  transition: width 0.2s ease;
+  width: 0%;
+}
+
+/* ── Reader pages ────────────────────────────────────────────── */
+#reader-pages {
+  padding: 80px 0 120px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+}
+
+.reader-page {
+  width: 100%;
+  max-width: 700px;
+  padding: 0 20px;
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.7s ease, transform 0.7s ease;
+}
+.reader-page.visible { opacity: 1; transform: translateY(0); }
+.reader-page img {
+  width: 100%;
+  border-radius: var(--radius-md);
+  display: block;
+}
+.reader-page-num {
+  text-align: center;
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  padding: 20px 0 24px;
+}
+
+/* Reader end card */
+.reader-end {
+  text-align: center;
+  padding: 60px 20px;
+  max-width: 400px;
+  margin: 0 auto;
+}
+.reader-end-title {
+  font-family: var(--font-display);
+  font-size: 36px;
+  font-weight: 300;
+  margin-bottom: 12px;
+}
+.reader-end-sub { color: var(--text-muted); font-size: 14px; margin-bottom: 28px; }
+
+/* ── Back to top ─────────────────────────────────────────────── */
+#back-top {
+  position: fixed;
+  bottom: 32px; right: 32px;
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-md);
+  color: var(--text-muted);
+  opacity: 0;
+  pointer-events: none;
+  transition: all var(--trans);
+  z-index: 50;
+}
+#back-top.show { opacity: 1; pointer-events: all; }
+#back-top:hover { color: var(--text); transform: translateY(-2px); }
+#back-top svg { width: 16px; height: 16px; }
+
+/* ── Favorites page ──────────────────────────────────────────── */
+#favorites-section { padding: 120px 40px 80px; max-width: 1400px; margin: 0 auto; }
+.favorites-header { margin-bottom: 48px; }
+.favorites-title { font-family: var(--font-display); font-size: 48px; font-weight: 300; margin-bottom: 8px; }
+
+/* ── Toast ───────────────────────────────────────────────────── */
+#toast {
+  position: fixed;
+  bottom: 32px; left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  background: var(--text);
+  color: var(--bg);
+  padding: 10px 24px;
+  border-radius: 99px;
+  font-size: 13px;
+  font-weight: 300;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.4s ease;
+  z-index: 300;
+  white-space: nowrap;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  #nav { padding: 0 16px; }
+  #comic-grid { padding: 0 16px 100px; gap: 20px; grid-template-columns: repeat(2, 1fr); }
+  #filters { padding: 0 16px 32px; }
+  .hero-title { font-size: 48px; }
+  .hero-stats { gap: 24px; }
+  .detail-grid { grid-template-columns: 1fr; gap: 24px; }
+  .detail-cover { max-width: 180px; }
+  #detail-content { padding: 0 16px 80px; }
+  #detail-banner { height: 260px; }
+  .detail-grid { margin-top: -48px; }
+  #reader-title { display: none; }
+}
+
+@media (max-width: 480px) {
+  #comic-grid { grid-template-columns: 1fr; }
+  .detail-stats { gap: 16px; }
+  .detail-actions { flex-direction: column; }
+  .btn-primary, .btn-ghost { justify-content: center; }
+}
+
+/* ── SVG icons inline ─────────────────────────────────────────── */
+.icon { display: inline-flex; align-items: center; justify-content: center; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════
+     LOADER
+     ═══════════════════════════════════════════════════════════ -->
+<div id="loader" aria-hidden="true">
+  <div class="loader-logo">VERSO</div>
+  <div class="loader-line"></div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     NAVIGATION
+     ═══════════════════════════════════════════════════════════ -->
+<nav id="nav" role="navigation" aria-label="Hauptnavigation">
+  <span class="nav-logo" id="nav-logo" tabindex="0" role="button" aria-label="Zur Startseite">VERSO</span>
+  <div class="nav-right">
+    <!-- Search -->
+    <button class="nav-btn" id="btn-search" aria-label="Suche öffnen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+    </button>
+    <!-- Favorites -->
+    <button class="nav-btn" id="btn-favs" aria-label="Favoriten anzeigen">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+    </button>
+    <!-- Dark mode -->
+    <button class="nav-btn" id="btn-theme" aria-label="Erscheinungsbild wechseln">
+      <svg id="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+      <svg id="icon-sun" class="hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+    </button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════════════════════
+     SEARCH OVERLAY
+     ═══════════════════════════════════════════════════════════ -->
+<div id="search-overlay" role="dialog" aria-label="Suche" aria-modal="true">
+  <button class="search-close" id="btn-search-close" aria-label="Suche schließen">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+  </button>
+  <div class="search-inner">
+    <p class="label search-label">Comics durchsuchen</p>
+    <div class="search-input-wrap">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" id="search-input" placeholder="Titel oder Genre …" autocomplete="off" />
+    </div>
+    <div id="search-results" class="search-results"></div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     PAGES
+     ═══════════════════════════════════════════════════════════ -->
+
+<!-- HOME -->
+<div id="page-home" class="page active">
+  <section id="hero">
+    <div class="hero-ambient">
+      <div class="ambient-circle"></div>
+      <div class="ambient-circle"></div>
+    </div>
+    <div class="hero-inner">
+      <p class="label hero-eyebrow">Eine neue Art zu lesen</p>
+      <h1 class="hero-title display">Comics,<br /><em>neu erlebt</em></h1>
+      <p class="hero-desc">Entdecke außergewöhnliche Geschichten. Erlebe Comics in ihrer reinsten, schönsten Form.</p>
+      <div class="hero-stats">
+        <div class="hero-stat">
+          <div class="hero-stat-num display" id="stat-comics">0</div>
+          <p class="label">Comics</p>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num display" id="stat-genres">0</div>
+          <p class="label">Genres</p>
+        </div>
+        <div class="hero-stat">
+          <div class="hero-stat-num display" id="stat-pages">0</div>
+          <p class="label">Seiten</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="filters" role="group" aria-label="Genre-Filter"></section>
+
+  <main id="comic-grid" role="main" aria-label="Comic-Bibliothek"></main>
+</div>
+
+<!-- DETAIL -->
+<div id="page-detail" class="page">
+  <div id="detail-banner">
+    <img id="detail-banner-img" src="" alt="" loading="lazy" />
+  </div>
+  <div id="detail-content">
+    <button class="back-btn" id="detail-back" aria-label="Zurück zur Übersicht">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+      Zurück
+    </button>
+    <div class="detail-grid">
+      <div class="detail-cover">
+        <img id="detail-cover-img" src="" alt="" loading="lazy" />
+      </div>
+      <div>
+        <p class="label detail-genre" id="detail-genre"></p>
+        <h1 class="detail-title display" id="detail-title"></h1>
+        <p class="detail-year" id="detail-year"></p>
+        <p class="detail-desc" id="detail-desc"></p>
+        <div class="detail-stats">
+          <div class="detail-stat">
+            <div class="detail-stat-num display" id="detail-pages-num"></div>
+            <div class="detail-stat-label">Seiten</div>
+          </div>
+          <div class="detail-stat">
+            <div class="detail-stat-num display" id="detail-reading-time"></div>
+            <div class="detail-stat-label">Min. Lesezeit</div>
+          </div>
+        </div>
+        <div class="detail-actions">
+          <button class="btn-primary" id="btn-read">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Comic lesen
+          </button>
+          <button class="btn-ghost" id="btn-fav-detail">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            <span id="fav-detail-text">Favorit</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- READER -->
+<div id="page-reader" class="page">
+  <div id="reader-bar">
+    <button class="reader-nav-btn" id="reader-back" aria-label="Zum Comic zurück">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="m15 18-6-6 6-6"/></svg>
+      Zurück
+    </button>
+    <h1 id="reader-title" class="display"></h1>
+    <span class="label" id="reader-page-counter" style="color:var(--text-muted)"></span>
+  </div>
+  <div id="progress-bar" role="progressbar" aria-label="Lesefortschritt">
+    <div id="progress-fill"></div>
+  </div>
+  <div id="reader-pages" aria-label="Comic-Seiten"></div>
+</div>
+
+<!-- FAVORITES -->
+<div id="page-favorites" class="page">
+  <div id="favorites-section">
+    <div class="favorites-header">
+      <button class="back-btn" id="favs-back">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+        Zurück
+      </button>
+      <h1 class="favorites-title display">Favoriten</h1>
+      <p class="label">Deine gespeicherten Comics</p>
+    </div>
+    <div id="fav-grid" class="comic-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:28px;"></div>
+    <div id="fav-empty" class="empty-state hidden">
+      <div class="empty-icon">♡</div>
+      <p>Noch keine Favoriten gespeichert.</p>
+    </div>
+  </div>
+</div>
+
+<!-- Back to top -->
+<button id="back-top" aria-label="Nach oben scrollen">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>
+</button>
+
+<!-- Toast -->
+<div id="toast" role="status" aria-live="polite"></div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════════════ -->
+<script>
+/* ─────────────────────────────────────────────────────────────
+   DATA — Comics konfigurieren
+   ───────────────────────────────────────────────────────────── */
+const comics = [
+  {
+    id: "lyssandra",
+    title: "Lyssandra",
+    description: "Eine moderne Neuinterpretation der griechischen Mythologie. Aphrodite erwacht in der Gegenwart und muss sich in einer Welt zurechtfinden, die Schönheit und Macht auf völlig neue Weise begreift. Eine Geschichte über Identität, Verlust und die ewige Natur der Liebe.",
+    cover: "lyssandra/02/04.png",
+    banner: "lyssandra/01/01.png",
+    genre: "Fantasy",
+    year: "2026",
+    pages: [
+      "lyssandra/01/01.png",
+      "lyssandra/01/02.png",
+      "lyssandra/01/03.png",
+      "lyssandra/01/04.png",
+      "lyssandra/02/01.png",
+      "lyssandra/02/02.png",
+      "lyssandra/02/03.png",
+      "lyssandra/02/04.png",
+      "lyssandra/03/01.png",
+      "lyssandra/03/02.png",
+      "lyssandra/03/03.png",
+      "lyssandra/03/04.png",
+      "lyssandra/04/01.png",
+      "lyssandra/04/02.png",
+      "lyssandra/04/03.png",
+      "lyssandra/04/04.png",
+      "lyssandra/05/01.png",
+      "lyssandra/05/02.png",
+      "lyssandra/05/03.png",
+      "lyssandra/05/04.png",
+      "lyssandra/06/01.png",
+      "lyssandra/06/02.png",
+      "lyssandra/06/03.png",
+      "lyssandra/06/04.png",
+      "lyssandra/07/01.png",
+      "lyssandra/07/02.png",
+      "lyssandra/07/03.png",
+      "lyssandra/07/04.png",
+      "lyssandra/08/01.png",
+      "lyssandra/08/02.png",
+      "lyssandra/08/03.png",
+      "lyssandra/08/04.png",
+      "lyssandra/09/01.png",
+      "lyssandra/09/02.png",
+      "lyssandra/09/03.png",
+      "lyssandra/09/04.png",
+      "lyssandra/10/01.png",
+      "lyssandra/10/02.png",
+      "lyssandra/10/03.png",
+      "lyssandra/10/04.png",
+      "lyssandra/11/01.png",
+      "lyssandra/11/02.png",
+      "lyssandra/11/03.png",
+      "lyssandra/11/04.png",
+      "lyssandra/12/01.png",
+      "lyssandra/12/02.png",
+      "lyssandra/12/03.png",
+      "lyssandra/12/04.png",
+      "lyssandra/13/01.png",
+      "lyssandra/13/02.png",
+      "lyssandra/13/03.png",
+      "lyssandra/13/04.png",
+      "lyssandra/14/01.png",
+      "lyssandra/14/02.png",
+      "lyssandra/14/03.png",
+      "lyssandra/14/04.png",
+      "lyssandra/15/01.png",
+      "lyssandra/15/02.png",
+      "lyssandra/15/03.png",
+      "lyssandra/15/04.png",
+      "lyssandra/16/01.png",
+      "lyssandra/16/02.png",
+      "lyssandra/16/03.png",
+      "lyssandra/16/04.png",
+      "lyssandra/17/01.png",
+      "lyssandra/18/01.png",
+      "lyssandra/18/02.png",
+      "lyssandra/18/03.png",
+      "lyssandra/18/04.png",
+      "lyssandra/19/01.png",
+      "lyssandra/19/02.png",
+      "lyssandra/19/03.png",
+      "lyssandra/19/04.png",
+      "lyssandra/20/01.png",
+      "lyssandra/20/02.png",
+      "lyssandra/20/03.png",
+      "lyssandra/20/04.png",
+      "lyssandra/21/01.png",
+      "lyssandra/21/02.png",
+      "lyssandra/21/03.png",
+      "lyssandra/21/04.png",
+      "lyssandra/22/01.png",
+      "lyssandra/22/02.png",
+      "lyssandra/22/03.png",
+      "lyssandra/22/04.png"
+    ]
+  },
+  {
+    id: "maya",
+    title: "Maya",
+    description: "In den Schatten einer namenlosen Stadt patrouilliert eine Detektivin durch endlose Nächte. Jeder Fall führt sie tiefer in ein Netz aus Lügen und Geheimnissen, das die Stadt seit Jahrzehnten in seinem Griff hält. Neo-Noir auf höchstem Niveau.",
+    cover: "maya/03/03.png",
+    banner: "maya/03/04.png",
+    genre: "Noir",
+    year: "2025",
+    pages: [
+    "maya/01/01.png",
+    "maya/01/02.png",
+    "maya/01/03.png",
+    "maya/01/04.png",
+    "maya/02/01.png",
+    "maya/02/02.png",
+    "maya/02/03.png",
+    "maya/02/04.png",
+    "maya/03/01.png",
+    "maya/03/02.png",
+    "maya/03/03.png",
+    "maya/03/04.png",
+    "maya/04/01.png",
+    "maya/04/02.png",
+    "maya/04/03.png",
+    "maya/04/04.png",
+    "maya/05/01.png",
+    "maya/05/02.png",
+    "maya/05/03.png",
+    "maya/05/04.png",
+    "maya/06/01.png",
+    "maya/06/02.png",
+    "maya/06/03.png",
+    "maya/06/04.png",
+    "maya/07/01.png",
+    "maya/07/02.png",
+    "maya/07/03.png",
+    "maya/07/04.png",
+    "maya/08/01.png",
+    "maya/08/02.png",
+    "maya/08/03.png",
+    "maya/08/04.png",
+    "maya/09/01.png",
+    "maya/09/02.png",
+    "maya/09/03.png",
+    "maya/09/04.png",
+    "maya/10/01.png",
+    "maya/10/02.png",
+    "maya/10/03.png",
+    "maya/10/04.png",
+    "maya/11/01.png",
+    "maya/11/02.png",
+    "maya/11/03.png",
+    "maya/11/04.png"
+    ]
+  },
+  {
+    id: "rugby",
+    title: "Rugby",
+    description: "In den Schatten einer namenlosen Stadt patrouilliert eine Detektivin durch endlose Nächte. Jeder Fall führt sie tiefer in ein Netz aus Lügen und Geheimnissen, das die Stadt seit Jahrzehnten in seinem Griff hält. Neo-Noir auf höchstem Niveau.",
+    cover: "rugby/01/04.png",
+    banner: "rugby/01/01.png",
+    genre: "Noir",
+    year: "2025",
+    pages: [
+    "rugby/01/01.png",
+    "rugby/01/02.png",
+    "rugby/01/03.png",
+    "rugby/01/04.png"
+    ]
+  },
+  {
+    id: "circe",
+    title: "Circe",
+    description: "Zwei Astronauten auf einer einsamen Raumstation am Rand des bekannten Universums. Als der Kontakt zur Erde abbricht, beginnen sie, die tiefsten Fragen der Existenz neu zu stellen. Eine meditative, bildgewaltige Reise durch Raum und Zeit.",
+    cover: "circe/03/03.png",
+    banner: "circe/02/04.png",
+    genre: "Sci-Fi",
+    year: "2026",
+    pages: [
+      "circe/01/01.png",
+      "circe/01/02.png",
+      "circe/01/03.png",
+      "circe/01/04.png",
+      "circe/02/01.png",
+      "circe/02/02.png",
+      "circe/02/03.png",
+      "circe/02/04.png",
+      "circe/03/01.png",
+      "circe/03/02.png",
+      "circe/03/03.png",
+      "circe/03/04.png",
+      "circe/04/01.png",
+      "circe/04/02.png",
+      "circe/04/03.png",
+      "circe/04/04.png",
+      "circe/05/01.png",
+      "circe/05/02.png",
+      "circe/05/03.png",
+      "circe/05/04.png",
+      "circe/06/01.png",
+      "circe/06/02.png",
+      "circe/06/03.png",
+      "circe/06/04.png",
+      "circe/07/01.png",
+      "circe/07/02.png",
+      "circe/07/03.png",
+      "circe/07/04.png",
+      "circe/08/01.png",
+      "circe/08/02.png",
+      "circe/08/03.png",
+      "circe/08/04.png",
+      "circe/09/01.png",
+      "circe/09/02.png",
+      "circe/09/03.png",
+      "circe/09/04.png"
+    ]
+  },
+  {
+    id: "aphrodite",
+    title: "Aphrodite | Godess of Love",
+    description: "In einer Welt, in der die Natur zurückgekehrt ist und die Zivilisation sich neu erfindet, sucht eine junge Botanikerin nach dem mythischen Garten Eden. Was sie findet, verändert alles, was sie über Schöpfung und Zerstörung zu wissen glaubte.",
+    cover: "aphrodite/01/02.png",
+    banner: "aphrodite/01/04.png",
+    genre: "Fantasy",
+    year: "2025",
+    pages: [
+      "aphrodite/01/01.png",
+      "aphrodite/01/02.png",
+      "aphrodite/01/03.png",
+      "aphrodite/01/04.png",
+      "aphrodite/01/05.png",
+      "aphrodite/01/06.png",
+      "aphrodite/01/07.png",
+      "aphrodite/02/01.png",
+      "aphrodite/02/02.png",
+      "aphrodite/02/03.png",
+      "aphrodite/02/04.png",
+      "aphrodite/03/01.png",
+      "aphrodite/03/02.png",
+      "aphrodite/03/03.png",
+      "aphrodite/03/04.png",
+      "aphrodite/03/05.png",
+      "aphrodite/03/06.png",
+      "aphrodite/03/07.png",
+      "aphrodite/03/08.png",
+      "aphrodite/04/07.png",
+      "aphrodite/04/01.png",
+      "aphrodite/04/02.png",
+      "aphrodite/04/03.png",
+      "aphrodite/04/04.png",
+      "aphrodite/04/05.png",
+      "aphrodite/04/06.png",
+      "aphrodite/04/07.png",
+      "aphrodite/04/08.png",
+      "aphrodite/05/01.png",
+      "aphrodite/05/02.png",
+      "aphrodite/05/03.png",
+      "aphrodite/05/04.png",
+      "aphrodite/06/01.png",
+      "aphrodite/06/02.png",
+      "aphrodite/06/03.png",
+      "aphrodite/06/04.png",
+      "aphrodite/06/05.png",
+      "aphrodite/06/06.png",
+      "aphrodite/06/07.png",
+      "aphrodite/06/08.png",
+      "aphrodite/07/01.png",
+      "aphrodite/07/02.png",
+      "aphrodite/07/03.png",
+      "aphrodite/07/04.png",
+      "aphrodite/07/05.png",
+      "aphrodite/07/06.png",
+      "aphrodite/07/07.png",
+      "aphrodite/07/08.png",
+      "aphrodite/08/01.png",
+      "aphrodite/08/02.png",
+      "aphrodite/08/03.png",
+      "aphrodite/08/04.png",
+      "aphrodite/08/05.png",
+      "aphrodite/08/06.png"
+    ]
+  },
+  {
+    id: "leyla",
+    title: "Leyla",
+    description: "Eine Modedesignerin in Mailand entdeckt, dass ihre Entwürfe eine uralte Prophezeiung erfüllen. Zwischen Haute Couture und dem Okkulten muss sie entscheiden, welche Macht sie annehmen will. Glamour trifft auf Übernatürliches.",
+    cover: "leyla/01/01.png",
+    banner: "leyla/01/02.png",
+    genre: "Mystery",
+    year: "2026",
+    pages: [
+      "leyla/01/01.png",
+      "leyla/01/02.png",
+      "leyla/01/03.png",
+      "leyla/01/04.png",
+      "leyla/01/05.png",
+      "leyla/01/06.png",
+      "leyla/01/07.png",
+      "leyla/02/01.png",
+      "leyla/02/02.png",
+      "leyla/02/03.png",
+      "leyla/02/04.png"
+    ]
+  },
+  {
+    id: "alexia",
+    title: "alexia",
+    description: "Zwei Kontinente. Ein Geheimnis. Eine Frau, die den Schlüssel trägt. Ein episches Abenteuer, das durch historische Epochen springt und die Verbindungen zwischen vergangenen Zivilisationen aufdeckt. Geschichte wird lebendig wie nie zuvor.",
+    cover: "alexia/01/01.png",
+    banner: "alexia/02/02.png",
+    genre: "Abenteuer",
+    year: "2025",
+    pages: [
+      "alexia/01/01.png",
+      "alexia/01/02.png",
+      "alexia/01/03.png",
+      "alexia/01/04.png",
+      "alexia/01/05.png",
+      "alexia/02/01.png",
+      "alexia/02/02.png",
+      "alexia/02/03.png",
+      "alexia/02/04.png",
+      "alexia/03/01.png",
+      "alexia/03/02.png",
+      "alexia/03/03.png",
+      "alexia/03/04.png",
+      "alexia/04/01.png",
+      "alexia/04/02.png",
+      "alexia/04/03.png",
+      "alexia/04/04.png",
+      "alexia/05/01.png",
+      "alexia/05/02.png",
+      "alexia/05/03.png",
+      "alexia/05/04.png",
+      "alexia/06/01.png",
+      "alexia/06/02.png",
+      "alexia/06/03.png",
+      "alexia/06/04.png",
+      "alexia/07/01.png"
+    ]
+  },
+  {
+    id: "music",
+    title: "music",
+    description: "Zwei Kontinente. Ein Geheimnis. Eine Frau, die den Schlüssel trägt. Ein episches Abenteuer, das durch historische Epochen springt und die Verbindungen zwischen vergangenen Zivilisationen aufdeckt. Geschichte wird lebendig wie nie zuvor.",
+    cover: "music/cover/01.png",
+    banner: "music/01/03.png",
+    genre: "Abenteuer",
+    year: "2025",
+    pages: [
+      "music/01/01.png",
+      "music/01/02.png",
+      "music/01/03.png",
+      "music/01/04.png",
+      "music/01/05.png",
+      "music/01/06.png",
+      "music/01/07.png",
+      "music/01/08.png",
+      "music/01/09.png",
+      "music/01/10.png",
+      "music/01/11.png",
+      "music/01/12.png",
+      "music/01/13.png",
+      "music/01/14.png",
+      "music/01/15.png",
+      "music/01/16.png",
+      "music/01/17.png",
+      "music/01/18.png",
+      "music/01/19.png",
+      "music/01/20.png",
+      "music/01/21.png",
+      "music/01/22.png",
+      "music/01/23.png",
+      "music/01/24.png",
+      "music/01/25.png",
+      "music/01/26.png",
+      "music/01/27.png",
+      "music/01/28.png",
+      "music/01/29.png",
+      "music/01/30.png"
+    ]
+  }
+];
+
+/* ─────────────────────────────────────────────────────────────
+   STATE
+   ───────────────────────────────────────────────────────────── */
+let currentPage  = 'home';
+let currentComic = null;
+let activeFilter = 'Alle';
+let isDark       = false;
+
+/* ─────────────────────────────────────────────────────────────
+   HELPERS
+   ───────────────────────────────────────────────────────────── */
+
+// localStorage wrappers
+const storage = {
+  get(k, fallback = null) {
+    try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : fallback; } catch { return fallback; }
+  },
+  set(k, v) {
+    try { localStorage.setItem(k, JSON.stringify(v)); } catch {}
+  }
+};
+
+// Toast notification
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2400);
+}
+
+// Favorites
+function getFavs()        { return storage.get('verso_favs', []); }
+function isFav(id)        { return getFavs().includes(id); }
+function toggleFav(id) {
+  const favs = getFavs();
+  const idx  = favs.indexOf(id);
+  if (idx === -1) { favs.push(id); showToast('Zu Favoriten hinzugefügt'); }
+  else            { favs.splice(idx, 1); showToast('Aus Favoriten entfernt'); }
+  storage.set('verso_favs', favs);
+}
+
+// Progress
+function getProgress(id)     { return storage.get(`verso_prog_${id}`, 0); }
+function saveProgress(id, n) { storage.set(`verso_prog_${id}`, n); }
+
+// Reading time estimate (2 min per page)
+function readingTime(pages) { return Math.max(1, Math.round(pages.length * 2)); }
+
+/* ─────────────────────────────────────────────────────────────
+   NAVIGATION
+   ───────────────────────────────────────────────────────────── */
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+  currentPage = id;
+  window.scrollTo({ top: 0 });
+}
+
+/* ─────────────────────────────────────────────────────────────
+   FILTERS & GRID
+   ───────────────────────────────────────────────────────────── */
+function getGenres() {
+  const g = new Set();
+  comics.forEach(c => g.add(c.genre));
+  return ['Alle', ...Array.from(g).sort()];
+}
+
+function renderFilters() {
+  const el = document.getElementById('filters');
+  el.innerHTML = '';
+  getGenres().forEach(g => {
+    const btn = document.createElement('button');
+    btn.className = 'filter-btn' + (g === activeFilter ? ' active' : '');
+    btn.textContent = g;
+    btn.setAttribute('aria-pressed', g === activeFilter);
+    btn.addEventListener('click', () => {
+      activeFilter = g;
+      document.querySelectorAll('.filter-btn').forEach(b => {
+        b.classList.toggle('active', b.textContent === g);
+        b.setAttribute('aria-pressed', b.textContent === g);
+      });
+      renderGrid();
+    });
+    el.appendChild(btn);
+  });
+}
+
+function renderGrid(list) {
+  const filtered = (list || comics).filter(c => activeFilter === 'Alle' || c.genre === activeFilter);
+  const grid = document.getElementById('comic-grid');
+  grid.innerHTML = '';
+  if (!filtered.length) {
+    grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1;padding:80px 0;">
+      <div class="empty-icon">◯</div>
+      <p>Keine Comics in diesem Genre gefunden.</p>
+    </div>`;
+    return;
+  }
+  filtered.forEach((comic, i) => {
+    grid.appendChild(buildComicCard(comic, i));
+  });
+}
+
+function buildComicCard(comic, delay = 0) {
+  const progress = getProgress(comic.id);
+  const pct      = comic.pages.length ? Math.round((progress / comic.pages.length) * 100) : 0;
+  const fav      = isFav(comic.id);
+
+  const card = document.createElement('article');
+  card.className = 'comic-card';
+  card.style.animationDelay = `${delay * 60}ms`;
+  card.setAttribute('role', 'button');
+  card.setAttribute('tabindex', '0');
+  card.setAttribute('aria-label', `${comic.title} lesen`);
+  card.innerHTML = `
+    <div class="comic-card-cover">
+      <img src="${comic.cover}" alt="Cover von ${comic.title}" loading="lazy" />
+      <button class="comic-card-fav ${fav ? 'favorited' : ''}" data-id="${comic.id}" aria-label="${fav ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'}">
+        <svg viewBox="0 0 24 24" fill="${fav ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </button>
+      ${pct > 0 ? `<div class="comic-card-progress visible"><div class="comic-card-progress-bar" style="width:${pct}%"></div></div>` : ''}
+    </div>
+    <p class="label comic-card-genre">${comic.genre}</p>
+    <h2 class="comic-card-title display">${comic.title}</h2>
+    <p class="comic-card-desc">${comic.description}</p>
+    <div class="comic-card-meta">
+      <span>${comic.year}</span>
+      <span class="meta-dot"></span>
+      <span>${comic.pages.length} Seiten</span>
+      ${pct > 0 ? `<span class="meta-dot"></span><span>${pct}% gelesen</span>` : ''}
+    </div>
+  `;
+
+  // Open detail
+  const openDetail = (e) => {
+    if (e.target.closest('.comic-card-fav')) return;
+    openComic(comic.id);
+  };
+  card.addEventListener('click', openDetail);
+  card.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') openDetail(e); });
+
+  // Fav button
+  card.querySelector('.comic-card-fav').addEventListener('click', e => {
+    e.stopPropagation();
+    toggleFav(comic.id);
+    renderGrid();
+  });
+
+  return card;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   DETAIL PAGE
+   ───────────────────────────────────────────────────────────── */
+function openComic(id) {
+  currentComic = comics.find(c => c.id === id);
+  if (!currentComic) return;
+
+  document.getElementById('detail-banner-img').src = currentComic.banner;
+  document.getElementById('detail-banner-img').alt = `Banner für ${currentComic.title}`;
+  document.getElementById('detail-cover-img').src  = currentComic.cover;
+  document.getElementById('detail-cover-img').alt  = `Cover von ${currentComic.title}`;
+  document.getElementById('detail-genre').textContent        = currentComic.genre;
+  document.getElementById('detail-title').textContent        = currentComic.title;
+  document.getElementById('detail-year').textContent         = currentComic.year;
+  document.getElementById('detail-desc').textContent         = currentComic.description;
+  document.getElementById('detail-pages-num').textContent    = currentComic.pages.length;
+  document.getElementById('detail-reading-time').textContent = readingTime(currentComic.pages);
+
+  updateFavDetailBtn();
+  showPage('detail');
+}
+
+function updateFavDetailBtn() {
+  if (!currentComic) return;
+  const btn  = document.getElementById('btn-fav-detail');
+  const text = document.getElementById('fav-detail-text');
+  const fav  = isFav(currentComic.id);
+  btn.classList.toggle('favorited', fav);
+  text.textContent = fav ? 'Gespeichert' : 'Favorit';
+  btn.querySelector('svg').setAttribute('fill', fav ? 'currentColor' : 'none');
+}
+
+/* ─────────────────────────────────────────────────────────────
+   READER
+   ───────────────────────────────────────────────────────────── */
+function openReader() {
+  if (!currentComic) return;
+  const comic = currentComic;
+
+  document.getElementById('reader-title').textContent = comic.title;
+  const container = document.getElementById('reader-pages');
+  container.innerHTML = '';
+
+  comic.pages.forEach((src, i) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'reader-page';
+    wrap.setAttribute('data-index', i);
+    wrap.innerHTML = `
+      <img src="${src}" alt="Seite ${i + 1} von ${comic.title}" loading="lazy" />
+      <p class="reader-page-num label">${i + 1} / ${comic.pages.length}</p>
+    `;
+    container.appendChild(wrap);
+  });
+
+  // End card
+  const end = document.createElement('div');
+  end.className = 'reader-end';
+  end.innerHTML = `
+    <p class="label" style="margin-bottom:16px">Ende</p>
+    <h2 class="reader-end-title display">${comic.title}</h2>
+    <p class="reader-end-sub">Du hast diesen Comic vollständig gelesen.</p>
+    <button class="btn-primary" onclick="showPage('detail')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16"><path d="m15 18-6-6 6-6"/></svg>
+      Zurück zur Übersicht
+    </button>
+  `;
+  container.appendChild(end);
+
+  showPage('reader');
+  initReaderObserver(comic);
+}
+
+function initReaderObserver(comic) {
+  const pages = document.querySelectorAll('.reader-page');
+  const fill  = document.getElementById('progress-fill');
+  const counter = document.getElementById('reader-page-counter');
+
+  // Restore saved progress
+  const savedIdx = getProgress(comic.id);
+  if (savedIdx > 0 && savedIdx < pages.length) {
+    setTimeout(() => {
+      pages[savedIdx].scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 200);
+  }
+
+  // Intersection Observer — fade in & track progress
+  const observer = new IntersectionObserver((entries) => {
+    let maxVisible = 0;
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        const idx = parseInt(entry.target.getAttribute('data-index'));
+        if (idx > maxVisible) maxVisible = idx;
+        saveProgress(comic.id, idx);
+        counter.textContent = `${idx + 1} / ${comic.pages.length}`;
+        const pct = ((idx + 1) / comic.pages.length) * 100;
+        fill.style.width = pct + '%';
+        document.getElementById('progress-bar').setAttribute('aria-valuenow', Math.round(pct));
+      }
+    });
+  }, { threshold: 0.2, rootMargin: '0px 0px -10% 0px' });
+
+  pages.forEach(p => observer.observe(p));
+}
+
+/* ─────────────────────────────────────────────────────────────
+   FAVORITES PAGE
+   ───────────────────────────────────────────────────────────── */
+function renderFavorites() {
+  const favs   = getFavs();
+  const grid   = document.getElementById('fav-grid');
+  const empty  = document.getElementById('fav-empty');
+  const comics_favs = comics.filter(c => favs.includes(c.id));
+  grid.innerHTML = '';
+  if (!comics_favs.length) {
+    grid.classList.add('hidden');
+    empty.classList.remove('hidden');
+    return;
+  }
+  grid.classList.remove('hidden');
+  empty.classList.add('hidden');
+  comics_favs.forEach((c, i) => grid.appendChild(buildComicCard(c, i)));
+}
+
+/* ─────────────────────────────────────────────────────────────
+   SEARCH
+   ───────────────────────────────────────────────────────────── */
+function renderSearch(query) {
+  const el = document.getElementById('search-results');
+  if (!query.trim()) { el.innerHTML = ''; return; }
+  const q = query.toLowerCase();
+  const results = comics.filter(c =>
+    c.title.toLowerCase().includes(q) ||
+    c.genre.toLowerCase().includes(q) ||
+    c.description.toLowerCase().includes(q)
+  );
+  if (!results.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">◯</div><p>Keine Ergebnisse für „${query}"</p></div>`;
+    return;
+  }
+  el.innerHTML = results.map(c => `
+    <div class="search-result-item" data-id="${c.id}" role="button" tabindex="0" aria-label="${c.title} öffnen">
+      <img class="search-result-thumb" src="${c.cover}" alt="" loading="lazy" />
+      <div class="search-result-info">
+        <div class="search-result-title">${c.title}</div>
+        <div class="search-result-sub">${c.genre} · ${c.year}</div>
+      </div>
+    </div>
+  `).join('');
+  el.querySelectorAll('.search-result-item').forEach(item => {
+    const go = () => {
+      closeSearch();
+      openComic(item.dataset.id);
+    };
+    item.addEventListener('click', go);
+    item.addEventListener('keydown', e => { if (e.key === 'Enter') go(); });
+  });
+}
+
+function openSearch() {
+  document.getElementById('search-overlay').classList.add('open');
+  document.getElementById('search-input').focus();
+}
+function closeSearch() {
+  document.getElementById('search-overlay').classList.remove('open');
+  document.getElementById('search-input').value = '';
+  document.getElementById('search-results').innerHTML = '';
+}
+
+/* ─────────────────────────────────────────────────────────────
+   STATS COUNTER ANIMATION
+   ───────────────────────────────────────────────────────────── */
+function animateCounter(el, target, duration = 900) {
+  const start = performance.now();
+  const step = (now) => {
+    const t = Math.min(1, (now - start) / duration);
+    el.textContent = Math.round(t * target);
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+function renderStats() {
+  const totalPages = comics.reduce((s, c) => s + c.pages.length, 0);
+  const genres     = new Set(comics.map(c => c.genre)).size;
+  animateCounter(document.getElementById('stat-comics'), comics.length);
+  animateCounter(document.getElementById('stat-genres'), genres);
+  animateCounter(document.getElementById('stat-pages'),  totalPages);
+}
+
+/* ─────────────────────────────────────────────────────────────
+   THEME
+   ───────────────────────────────────────────────────────────── */
+function setTheme(dark) {
+  isDark = dark;
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : '');
+  document.getElementById('icon-moon').classList.toggle('hidden', dark);
+  document.getElementById('icon-sun').classList.toggle('hidden', !dark);
+  storage.set('verso_theme', dark ? 'dark' : 'light');
+}
+
+/* ─────────────────────────────────────────────────────────────
+   KEYBOARD NAVIGATION
+   ───────────────────────────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('search-overlay').classList.contains('open')) {
+      closeSearch();
+    } else if (currentPage === 'reader') {
+      showPage('detail');
+    } else if (currentPage === 'detail') {
+      showPage('home');
+    }
+  }
+});
+
+/* ─────────────────────────────────────────────────────────────
+   SCROLL EFFECTS
+   ───────────────────────────────────────────────────────────── */
+window.addEventListener('scroll', () => {
+  const y = window.scrollY;
+  document.getElementById('nav').classList.toggle('scrolled', y > 20);
+  document.getElementById('back-top').classList.toggle('show', y > 600);
+}, { passive: true });
+
+/* ─────────────────────────────────────────────────────────────
+   EVENT LISTENERS
+   ───────────────────────────────────────────────────────────── */
+
+// Nav logo → home
+document.getElementById('nav-logo').addEventListener('click', () => {
+  showPage('home');
+  renderGrid();
+});
+
+// Search
+document.getElementById('btn-search').addEventListener('click', openSearch);
+document.getElementById('btn-search-close').addEventListener('click', closeSearch);
+document.getElementById('search-input').addEventListener('input', e => renderSearch(e.target.value));
+
+// Theme
+document.getElementById('btn-theme').addEventListener('click', () => setTheme(!isDark));
+
+// Favorites nav
+document.getElementById('btn-favs').addEventListener('click', () => {
+  renderFavorites();
+  showPage('favorites');
+});
+document.getElementById('favs-back').addEventListener('click', () => showPage('home'));
+
+// Detail back
+document.getElementById('detail-back').addEventListener('click', () => showPage('home'));
+
+// Fav in detail
+document.getElementById('btn-fav-detail').addEventListener('click', () => {
+  if (!currentComic) return;
+  toggleFav(currentComic.id);
+  updateFavDetailBtn();
+});
+
+// Read button
+document.getElementById('btn-read').addEventListener('click', openReader);
+
+// Reader back
+document.getElementById('reader-back').addEventListener('click', () => showPage('detail'));
+
+// Back to top
+document.getElementById('back-top').addEventListener('click', () => {
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+/* ─────────────────────────────────────────────────────────────
+   INIT
+   ───────────────────────────────────────────────────────────── */
+function init() {
+  // Restore theme
+  const savedTheme = storage.get('verso_theme', 'light');
+  setTheme(savedTheme === 'dark');
+
+  // Render
+  renderFilters();
+  renderGrid();
+  renderStats();
+
+  // Hide loader
+  setTimeout(() => {
+    document.getElementById('loader').classList.add('fade-out');
+  }, 1400);
+}
+
+// Start after DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', init);
+} else {
+  init();
+}
+</script>
+</body>
+</html>
